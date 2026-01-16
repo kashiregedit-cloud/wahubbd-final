@@ -4,7 +4,7 @@
 
 "@adiwajshing/baileys@github:devlikeapro/Baileys#fork-master-2025-12-17":
   version "7.0.0-rc.9"
-  resolved "git+ssh://git@github.com/devlikeapro/Baileys.git#21289d1c97dd4b6b0c2585c0f77cecc486fb9f2f"
+  resolved "git+https://github.com/devlikeapro/Baileys.git#21289d1c97dd4b6b0c2585c0f77cecc486fb9f2f"
   dependencies:
     "@cacheable/node-cache" "^1.4.0"
     "@hapi/boom" "^9.1.3"
