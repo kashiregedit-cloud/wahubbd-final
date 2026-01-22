@@ -77,7 +77,7 @@
     "joi": "^17.13.3",
     "knex": "^3.1.0",
     "libphonenumber-js": "^1.10.36",
-    "libsignal": "git+https://github.com/WhiskeySockets/libsignal-node.git#master",
+    "libsignal": "https://github.com/WhiskeySockets/libsignal-node/archive/1c30d7d7e76a3b0aa120b04dc6a26f5a12dccf67.tar.gz",
     "link-preview-js": "^3.0.4",
     "lodash": "^4.17.21",
     "long": "^5.3.2",
@@ -117,6 +117,7 @@
   "resolutions": {
     "typescript": "5.9.2",
     "bufferutil": "^4.0.8",
+    "libsignal": "https://github.com/WhiskeySockets/libsignal-node/archive/1c30d7d7e76a3b0aa120b04dc6a26f5a12dccf67.tar.gz",
     "ws": "^8.18.0",
     "puppeteer": "^24.31.0",
     "whatwg-url": "13.0.0",
