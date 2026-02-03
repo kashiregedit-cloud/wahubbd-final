@@ -235,7 +235,8 @@ const ToEnginePresenceStatus = flipObject(PresenceStatuses);
 
 export class WhatsappSessionNoWebCore extends WhatsappSession {
   private START_ATTEMPT_DELAY_SECONDS = 2;
-  private AUTO_RESTART_AFTER_SECONDS = 28 * 60;
+  // Increase auto-restart to 24 hours to prevent frequent restarts in production
+  private AUTO_RESTART_AFTER_SECONDS = 24 * 60 * 60;
 
   engine = WAHAEngine.NOWEB;
   authFactory = new NowebAuthFactoryCore();
@@ -283,7 +284,8 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       this.logger,
     );
 
-    // Enable auto-restart
+    // Auto-restart disabled as per user request to prevent session loss
+    /*
     const shiftSeconds = Math.floor(Math.random() * 30);
     const delay = this.AUTO_RESTART_AFTER_SECONDS + shiftSeconds;
     this.autoRestartJob = new SinglePeriodicJobRunner(
@@ -291,6 +293,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       delay * SECOND,
       this.logger,
     );
+    */
     this.authNOWEBStore = null;
   }
 
@@ -850,8 +853,8 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     params?: any,
   ): Promise<PairingCodeResponse> {
     if (method) {
-      const err = `NOWEB engine doesn't support any 'method', remove it and try again`;
-      throw new UnprocessableEntityException(err);
+      // NOWEB engine doesn't support any 'method', but we ignore it for compatibility
+      this.engineLogger.warn(`NOWEB engine doesn't support 'method' (${method}), ignoring it.`);
     }
 
     if (this.status == WAHASessionStatus.STARTING) {
