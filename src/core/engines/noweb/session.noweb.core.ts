@@ -74,6 +74,7 @@ import { isJidNewsletter, toCusFormat, toJID } from '@waha/core/utils/jids';
 import { DistinctAck } from '@waha/core/utils/reactive';
 import { flipObject, splitAt } from '@waha/helpers';
 import { PairingCodeResponse } from '@waha/structures/auth.dto';
+import { SupabaseClientLite } from '@waha/utils/supabase';
 import { CallData } from '@waha/structures/calls.dto';
 import {
   Channel,
@@ -581,6 +582,11 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
         this.qr.save(qr);
         this.printQR(this.qr);
         this.status = WAHASessionStatus.SCAN_QR_CODE;
+        try {
+          const png = await this.qr.get();
+          const b64 = png.toString('base64');
+          await SupabaseClientLite.saveQR(this.name, qr, b64);
+        } catch (e) {}
       }
     });
   }
@@ -864,6 +870,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     const parts = splitAt(code, 4);
     const codeRepr = parts.join('-');
     this.logger.info(`Your code: ${codeRepr}`);
+    try {
+      await SupabaseClientLite.savePairingCode(this.name, phoneNumber, codeRepr);
+    } catch (e) {}
     return { code: codeRepr };
   }
 
