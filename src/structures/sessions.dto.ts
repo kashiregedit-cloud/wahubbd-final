@@ -14,7 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-import { WAHAPresenceStatus, WAHASessionStatus } from './enums.dto';
+import { WAHAPresenceStatus, WAHASessionStatus, WAHAEngine } from './enums.dto';
 import { ChatIdProperty } from './properties.dto';
 import { WebhookConfig } from './webhooks.config.dto';
 
@@ -248,6 +248,15 @@ export class SessionConfig {
   @Type(() => WebjsConfig)
   @IsOptional()
   webjs?: WebjsConfig;
+
+  @ApiProperty({
+    description: 'Engine to use for this session (WEBJS, NOWEB, GOWS)',
+    required: false,
+    enum: WAHAEngine,
+  })
+  @IsEnum(WAHAEngine)
+  @IsOptional()
+  engine?: WAHAEngine;
 }
 
 export class SessionDTO {

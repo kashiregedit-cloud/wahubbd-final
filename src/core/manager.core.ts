@@ -145,7 +145,10 @@ export class SessionManagerCore extends SessionManager implements OnModuleInit {
   //
   async exists(name: string): Promise<boolean> {
     const state = this.sessions.get(name);
-    return state !== undefined && state !== DefaultSessionStatus.REMOVED;
+    return (
+      (state !== undefined && state !== DefaultSessionStatus.REMOVED) ||
+      this.sessionConfigs.has(name)
+    );
   }
 
   isRunning(name: string): boolean {
@@ -194,14 +197,20 @@ export class SessionManagerCore extends SessionManager implements OnModuleInit {
       sessionConfig: cfg,
       ignore: this.ignoreChatsConfig(cfg),
     };
-    if (this.EngineClass === WhatsappSessionWebJSCore) {
+
+    let EngineClass = this.EngineClass;
+    if (cfg?.engine) {
+      EngineClass = this.getEngine(cfg.engine);
+    }
+
+    if (EngineClass === WhatsappSessionWebJSCore) {
       sessionConfig.engineConfig = this.webjsEngineConfigService.getConfig();
-    } else if (this.EngineClass === WhatsappSessionGoWSCore) {
+    } else if (EngineClass === WhatsappSessionGoWSCore) {
       sessionConfig.engineConfig = this.gowsConfigService.getConfig();
     }
     await this.sessionAuthRepository.init(name);
     // @ts-ignore
-    const session = new this.EngineClass(sessionConfig);
+    const session = new EngineClass(sessionConfig);
     this.sessions.set(name, session);
     this.updateSessionEvents(name);
 
