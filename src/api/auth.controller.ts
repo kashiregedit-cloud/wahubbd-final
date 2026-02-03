@@ -54,11 +54,19 @@ class AuthController {
   @ApiOperation({
     summary: 'Request authentication code.',
   })
-  requestCode(
+  async requestCode(
     @SessionParam session: WhatsappSession,
     @Body() request: RequestCodeRequest,
   ) {
-    return session.requestCode(request.phoneNumber, request.method, request);
+    try {
+      return await session.requestCode(
+        request.phoneNumber,
+        request.method,
+        request,
+      );
+    } catch (error) {
+      throw new Error(`Failed to request code: ${error.message || error}`);
+    }
   }
 }
 
