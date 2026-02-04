@@ -599,7 +599,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
   async stop() {
     this.shouldRestart = false;
     this.startDelayedJob.cancel();
-    this.autoRestartJob.stop();
+    this.autoRestartJob?.stop();
 
     const hasCreds = this.authNOWEBStore?.state?.creds;
     if (hasCreds && this.status == WAHASessionStatus.WORKING) {
@@ -625,7 +625,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
   protected async failed() {
     this.shouldRestart = false;
     this.startDelayedJob.cancel();
-    this.autoRestartJob.stop();
+    this.autoRestartJob?.stop();
 
     // We'll restart the client if it's in the process of unpairing
     this.status = WAHASessionStatus.FAILED;
@@ -815,7 +815,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
   private async end() {
     this.cleanupPresenceTimeout();
     this.presence = null;
-    this.autoRestartJob.stop();
+    this.autoRestartJob?.stop();
     // @ts-ignore
     this.sock?.ev?.removeAllListeners();
     this.sock?.ws?.removeAllListeners();
