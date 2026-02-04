@@ -553,6 +553,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
         }
 
         // Do not reconnect if the QR code has not been scanned yet
+        /*
         if (this.status == WAHASessionStatus.SCAN_QR_CODE) {
           this.logger.warn(
             'QR code has not been scanned yet, force stopping the session.',
@@ -560,6 +561,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
           await this.failed();
           return;
         }
+        */
 
         // Reconnect if not logged out
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;

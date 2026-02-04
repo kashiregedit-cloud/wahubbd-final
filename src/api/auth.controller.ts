@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpException,
+  HttpStatus,
   Post,
   Query,
   UseInterceptors,
@@ -44,9 +46,19 @@ class AuthController {
   ): Promise<Buffer | QRCodeValue> {
     const qr = session.getQR();
     if (query.format == QRCodeFormat.RAW) {
+      if (!qr.raw) {
+        throw new HttpException('QR code not generated yet', HttpStatus.NOT_FOUND);
+      }
       return { value: qr.raw };
     }
-    return qr.get();
+    try {
+      return await qr.get();
+    } catch (error) {
+      if (error.message === 'QR_NOT_GENERATED') {
+        throw new HttpException('QR code not generated yet', HttpStatus.NOT_FOUND);
+      }
+      throw error;
+    }
   }
 
   @Post('request-code')
