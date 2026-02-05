@@ -110,6 +110,25 @@ export class NowebConfig {
   })
   @IsBoolean()
   markOnline: boolean = true;
+
+  @ApiProperty({
+    description: 'Enable presence subscriptions and updates for the session.',
+    required: false,
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  presenceEnabled?: boolean = false;
+
+  @ApiProperty({
+    description:
+      'Download media for incoming messages automatically. Disable to reduce resource usage.',
+    required: false,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  downloadMedia?: boolean = true;
 }
 
 export class WebjsConfig {
