@@ -145,10 +145,12 @@ export class WhatsappConfigService implements OnApplicationBootstrap {
 
   getExcludedPaths(): string[] {
     const value = this.configService.get('WHATSAPP_API_KEY_EXCLUDE_PATH', '');
+    const defaults = ['/api/files', '/api/files/(.*)'];
     if (!value) {
-      return [];
+      return defaults;
     }
-    return value.split(',').filter(Boolean);
+    const configured = value.split(',').filter(Boolean);
+    return [...defaults, ...configured];
   }
 
   getExcludedFullPaths(): string[] {
