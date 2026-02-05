@@ -2359,7 +2359,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     this.events2
       .get(WAHAEvents.POLL_VOTE_FAILED)
       .switch(
-        messagesUpsert$.pipe(
+        messagesAll$.pipe(
           mergeMap(this.handleMessageUpsertPollVoteFailed.bind(this)),
           filter(Boolean),
         ),

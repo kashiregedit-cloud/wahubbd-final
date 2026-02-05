@@ -70,6 +70,11 @@ export class MediaManager implements IMediaManager {
     if (extension === 'oga') {
       extension = 'ogg';
     }
+    // Fallback for audio if extension is missing - it's better to save it as ogg
+    // than to fail or save without extension
+    if (!extension && mimetype.startsWith('audio/')) {
+      extension = 'ogg';
+    }
     const mediaData: MediaData = {
       session: session,
       message: {
