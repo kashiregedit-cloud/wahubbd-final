@@ -2187,7 +2187,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     );
     const messagesFromAll$ = merge(messagesFromMe$, messagesFromOthers$);
     this.events2.get(WAHAEvents.MESSAGE).switch(messagesFromOthers$);
-    this.events2.get(WAHAEvents.MESSAGE_ANY).switch(messagesFromAll$);
+    // Optimization for lightweight: message.any now only returns messagesFromMe to avoid duplicates with message event for incoming messages
+    // Use 'message' for incoming, and 'message.any' for outgoing (sent) messages
+    this.events2.get(WAHAEvents.MESSAGE_ANY).switch(messagesFromMe$);
 
     const messagesRevoked$ = messagesUpsert$.pipe(
       // @ts-ignore
