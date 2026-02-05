@@ -2162,36 +2162,40 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     //
     // Messages
     //
-    const messagesUpsert$ = fromEvent(this.sock.ev, 'messages.upsert').pipe(
+    const upsertEvents$ = fromEvent(this.sock.ev, 'messages.upsert').pipe(
+      share(),
+    );
+    const downloadMediaFlag =
+      this.sessionConfig?.noweb?.downloadMedia ?? true;
+    const messagesOthers$ = upsertEvents$.pipe(
       filter(
         (event: BaileysEventMap['messages.upsert']) => event.type === 'notify',
       ),
       map((event: BaileysEventMap['messages.upsert']) => event.messages),
       mergeAll(),
       filter((msg) => this.jids.include(msg.key.remoteJid)),
+      filter((msg) => !isMine(msg)),
+      mergeMap((msg) => this.processIncomingMessage(msg, downloadMediaFlag)),
       share(),
     );
-    let [messagesFromMe$, messagesFromOthers$] = partition(
-      messagesUpsert$,
-      isMine,
-    );
-    const downloadMediaFlag =
-      this.sessionConfig?.noweb?.downloadMedia ?? true;
-    messagesFromMe$ = messagesFromMe$.pipe(
+    const messagesMe$ = upsertEvents$.pipe(
+      map((event: BaileysEventMap['messages.upsert']) => event.messages),
+      mergeAll(),
+      filter((msg) => this.jids.include(msg.key.remoteJid)),
+      filter(isMine),
       mergeMap((msg) => this.processIncomingMessage(msg, downloadMediaFlag)),
-      share(), // share it so we don't process twice in message.any
+      share(),
     );
-    messagesFromOthers$ = messagesFromOthers$.pipe(
-      mergeMap((msg) => this.processIncomingMessage(msg, downloadMediaFlag)),
-      share(), // share it so we don't process twice in message.any
+    const messagesAll$ = upsertEvents$.pipe(
+      map((event: BaileysEventMap['messages.upsert']) => event.messages),
+      mergeAll(),
+      filter((msg) => this.jids.include(msg.key.remoteJid)),
+      share(),
     );
-    const messagesFromAll$ = merge(messagesFromMe$, messagesFromOthers$);
-    this.events2.get(WAHAEvents.MESSAGE).switch(messagesFromOthers$);
-    // Optimization for lightweight: message.any now only returns messagesFromMe to avoid duplicates with message event for incoming messages
-    // Use 'message' for incoming, and 'message.any' for outgoing (sent) messages
-    this.events2.get(WAHAEvents.MESSAGE_ANY).switch(messagesFromMe$);
+    this.events2.get(WAHAEvents.MESSAGE).switch(messagesOthers$);
+    this.events2.get(WAHAEvents.MESSAGE_ANY).switch(messagesMe$);
 
-    const messagesRevoked$ = messagesUpsert$.pipe(
+    const messagesRevoked$ = messagesAll$.pipe(
       // @ts-ignore
       filter(
         (message) =>
@@ -2213,7 +2217,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     this.events2.get(WAHAEvents.MESSAGE_REVOKED).switch(messagesRevoked$);
 
     // Handle edited messages
-    const messagesEdited$ = messagesUpsert$.pipe(
+    const messagesEdited$ = messagesAll$.pipe(
       filter((message) => IsEditedMessage(message.message)),
       mergeMap(async (message): Promise<WAMessageEditedBody> => {
         const waMessage = this.toWAMessage(message);
@@ -2235,7 +2239,7 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     //
     // Message Reactions
     //
-    const messageReactions$ = messagesUpsert$.pipe(
+    const messageReactions$ = messagesAll$.pipe(
       map(this.processMessageReaction.bind(this)),
       filter(Boolean),
     );
