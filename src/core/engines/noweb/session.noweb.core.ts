@@ -459,7 +459,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     this.fixMessages();
     this.issueMessageUpdateOnEdits();
     this.issueMessageUpdateOnPoll();
-    this.issuePresenceUpdateOnMessageUpsert();
+    if (this.sessionConfig?.noweb?.presenceEnabled) {
+      this.issuePresenceUpdateOnMessageUpsert();
+    }
     if (this.isDebugEnabled()) {
       this.listenEngineEventsInDebugMode();
     }
@@ -2161,6 +2163,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     // Messages
     //
     const messagesUpsert$ = fromEvent(this.sock.ev, 'messages.upsert').pipe(
+      filter(
+        (event: BaileysEventMap['messages.upsert']) => event.type === 'notify',
+      ),
       map((event: BaileysEventMap['messages.upsert']) => event.messages),
       mergeAll(),
       filter((msg) => this.jids.include(msg.key.remoteJid)),
@@ -2170,12 +2175,14 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       messagesUpsert$,
       isMine,
     );
+    const downloadMediaFlag =
+      this.sessionConfig?.noweb?.downloadMedia ?? true;
     messagesFromMe$ = messagesFromMe$.pipe(
-      mergeMap((msg) => this.processIncomingMessage(msg, true)),
+      mergeMap((msg) => this.processIncomingMessage(msg, downloadMediaFlag)),
       share(), // share it so we don't process twice in message.any
     );
     messagesFromOthers$ = messagesFromOthers$.pipe(
-      mergeMap((msg) => this.processIncomingMessage(msg, true)),
+      mergeMap((msg) => this.processIncomingMessage(msg, downloadMediaFlag)),
       share(), // share it so we don't process twice in message.any
     );
     const messagesFromAll$ = merge(messagesFromMe$, messagesFromOthers$);
@@ -2322,13 +2329,15 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     );
     this.events2.get(WAHAEvents.GROUP_V2_LEAVE).switch(groupV2Leave$);
 
-    this.events2.get(WAHAEvents.PRESENCE_UPDATE).switch(
-      fromEvent(this.sock.ev, 'presence.update').pipe(
-        filter((presence: any) => this.jids.include(presence.id)),
-        map((data: any) => this.toWahaPresences(data.id, data.presences)),
-        share(),
-      ),
-    );
+    if (this.sessionConfig?.noweb?.presenceEnabled) {
+      this.events2.get(WAHAEvents.PRESENCE_UPDATE).switch(
+        fromEvent(this.sock.ev, 'presence.update').pipe(
+          filter((presence: any) => this.jids.include(presence.id)),
+          map((data: any) => this.toWahaPresences(data.id, data.presences)),
+          share(),
+        ),
+      );
+    }
 
     //
     // Poll votes
