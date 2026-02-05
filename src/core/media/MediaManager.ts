@@ -66,6 +66,10 @@ export class MediaManager implements IMediaManager {
     if (mimetype == 'application/was' && !extension) {
       extension = 'zip';
     }
+    // Fix for audio/ogg -> ogg instead of oga for better browser compatibility
+    if (extension === 'oga') {
+      extension = 'ogg';
+    }
     const mediaData: MediaData = {
       session: session,
       message: {
