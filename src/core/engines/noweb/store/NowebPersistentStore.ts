@@ -98,6 +98,7 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   bind(ev: BaileysEventEmitter, socket: any) {
+    this.logger.info('NowebPersistentStore: Binding events');
     // All
     ev.on('messaging-history.set', (data) => this.onMessagingHistorySet(data));
     // Messages
@@ -617,11 +618,20 @@ export class NowebPersistentStore implements INowebStore {
 
   private async onLabelsEdit(label: Label) {
     this.logger.info(`labels.edit - ${JSON.stringify(label)}`);
-    if (label.deleted) {
-      await this.labelsRepo.deleteById(label.id);
-      await this.labelAssociationsRepo.deleteByLabelId(label.id);
-    } else {
-      await this.labelsRepo.save(label);
+    try {
+      if (label.deleted) {
+        await this.labelsRepo.deleteById(label.id);
+        await this.labelAssociationsRepo.deleteByLabelId(label.id);
+      } else {
+        // Ensure id is string
+        if (typeof label.id !== 'string') {
+          label.id = String(label.id);
+        }
+        await this.labelsRepo.save(label);
+        this.logger.info(`labels.edit - saved label ${label.id}`);
+      }
+    } catch (error) {
+      this.logger.error(`labels.edit - failed to process label: ${error}`);
     }
   }
 
@@ -731,8 +741,10 @@ export class NowebPersistentStore implements INowebStore {
     return this.contactRepo.getAll(pagination);
   }
 
-  getLabels(): Promise<Label[]> {
-    return this.labelsRepo.getAll();
+  async getLabels(): Promise<Label[]> {
+    const labels = await this.labelsRepo.getAll();
+    this.logger.debug(`getLabels - found ${labels.length} labels`);
+    return labels;
   }
 
   getLabelById(labelId: string): Promise<Label | null> {
