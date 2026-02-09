@@ -98,7 +98,7 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   bind(ev: BaileysEventEmitter, socket: any) {
-    this.logger.info('NowebPersistentStore: Binding events');
+    this.logger.warn('NowebPersistentStore: Binding events');
     // All
     ev.on('messaging-history.set', (data) => this.onMessagingHistorySet(data));
     // Messages
@@ -282,6 +282,7 @@ export class NowebPersistentStore implements INowebStore {
 
   private async onMessagesUpsert(update) {
     const type = update.type;
+    this.logger.debug(`messages.upsert type: ${type}, count: ${update.messages?.length}`);
     if (type !== 'notify' && type !== 'append') {
       this.logger.debug(`unexpected type for messages.upsert: '${type}'`);
       return;
