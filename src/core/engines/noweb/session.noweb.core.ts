@@ -213,6 +213,8 @@ import {
 } from '@waha/core/env';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const promiseRetry = require('promise-retry');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const AsyncLock = require('async-lock');
 
 export const BaileysEvents = {
   CONNECTION_UPDATE: 'connection.update',
@@ -237,6 +239,12 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
   private START_ATTEMPT_DELAY_SECONDS = 2;
   // Increase auto-restart to 24 hours to prevent frequent restarts in production
   private AUTO_RESTART_AFTER_SECONDS = 24 * 60 * 60;
+
+  private labelLock = new AsyncLock({
+    timeout: 20_000,
+    maxPending: Infinity,
+  });
+  private lastLabelId = 0;
 
   engine = WAHAEngine.NOWEB;
   authFactory = new NowebAuthFactoryCore();
@@ -1509,26 +1517,33 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
 
   @Activity()
   public async createLabel(label: LabelDTO): Promise<Label> {
-    const labels = await this.store.getLabels();
-    const highestLabelId = lodash.max(
-      labels.map((label) => parseInt(label.id)),
-    );
-    const labelId = highestLabelId ? highestLabelId + 1 : 1;
-    const labelAction: LabelActionBody = {
-      id: labelId.toString(),
-      name: label.name,
-      color: label.color,
-      deleted: false,
-      predefinedId: undefined,
-    };
-    await this.sock.addLabel(undefined, labelAction);
+    return this.labelLock.acquire('createLabel', async () => {
+      const labels = await this.store.getLabels();
+      const highestLabelId = lodash.max(
+        labels.map((label) => parseInt(label.id)),
+      );
+      // Ensure we don't reuse IDs if multiple labels created quickly
+      const storeMax = highestLabelId || 0;
+      const nextId = Math.max(storeMax, this.lastLabelId) + 1;
+      this.lastLabelId = nextId;
 
-    return {
-      id: labelId.toString(),
-      name: label.name,
-      color: label.color,
-      colorHex: Label.toHex(label.color),
-    };
+      const labelId = nextId.toString();
+      const labelAction: LabelActionBody = {
+        id: labelId,
+        name: label.name,
+        color: label.color,
+        deleted: false,
+        predefinedId: undefined,
+      };
+      await this.sock.addLabel(undefined, labelAction);
+
+      return {
+        id: labelId,
+        name: label.name,
+        color: label.color,
+        colorHex: Label.toHex(label.color),
+      };
+    });
   }
 
   @Activity()

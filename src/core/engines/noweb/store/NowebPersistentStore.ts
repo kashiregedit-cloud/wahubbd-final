@@ -247,6 +247,23 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   private async syncMessagesHistory(messages) {
+    this.withNoLock('lids', async () => {
+      const lids: LidToPN[] = [];
+      for (const msg of messages) {
+        const jids = jidsFromKey(msg.key);
+        if (jids && jids.lid && jids.pn) {
+          lids.push({ id: jids.lid, pn: jids.pn });
+        }
+      }
+      if (lids.length > 0) {
+        const uniqueLids = lodash.uniqBy(lids, 'id');
+        await this.lidRepo.saveLids(uniqueLids);
+        this.logger.info(
+          `history sync - '${uniqueLids.length}' synced lid to pn mapping from messages`,
+        );
+      }
+    });
+
     const realMessages = messages.filter(esm.b.isRealMessage);
     messages = messages.filter((msg) => this.jids.include(msg.key.remoteJid));
     await this.messagesRepo.upsert(realMessages);
@@ -262,6 +279,22 @@ export class NowebPersistentStore implements INowebStore {
       return;
     }
     let messages = update.messages;
+    this.withNoLock('lids', async () => {
+      const lids: LidToPN[] = [];
+      for (const msg of messages) {
+        const jids = jidsFromKey(msg.key);
+        if (jids && jids.lid && jids.pn) {
+          lids.push({ id: jids.lid, pn: jids.pn });
+        }
+      }
+      if (lids.length > 0) {
+        const uniqueLids = lodash.uniqBy(lids, 'id');
+        await this.lidRepo.saveLids(uniqueLids);
+        this.logger.debug(
+          `messages.upsert - '${uniqueLids.length}' synced lid to pn mapping`,
+        );
+      }
+    });
     messages = messages.filter((msg) => this.jids.include(msg.key.remoteJid));
     const realMessages = messages.filter(esm.b.isRealMessage);
     await this.messagesRepo.upsert(realMessages);
@@ -271,6 +304,23 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   private async onMessageUpdate(updates) {
+    this.withNoLock('lids', async () => {
+      const lids: LidToPN[] = [];
+      for (const update of updates) {
+        const jids = jidsFromKey(update.key);
+        if (jids && jids.lid && jids.pn) {
+          lids.push({ id: jids.lid, pn: jids.pn });
+        }
+      }
+      if (lids.length > 0) {
+        const uniqueLids = lodash.uniqBy(lids, 'id');
+        await this.lidRepo.saveLids(uniqueLids);
+        this.logger.debug(
+          `messages.update - '${uniqueLids.length}' synced lid to pn mapping`,
+        );
+      }
+    });
+
     for (const update of updates) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const jid = esm.b.jidNormalizedUser(update.key.remoteJid!);
@@ -685,9 +735,29 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   async getChatLabels(chatId: string): Promise<Label[]> {
-    const associations =
-      await this.labelAssociationsRepo.getAssociationsByChatId(chatId);
-    const ids = associations.map((association) => association.labelId);
+    const chatIds = [chatId];
+    if (isLidUser(chatId)) {
+      const pn = await this.lidRepo.findPNByLid(chatId);
+      if (pn) {
+        chatIds.push(pn);
+      }
+    } else if (isPnUser(chatId)) {
+      const lid = await this.lidRepo.findLidByPN(chatId);
+      if (lid) {
+        chatIds.push(lid);
+      }
+    }
+
+    const allAssociations: LabelAssociation[] = [];
+    for (const id of chatIds) {
+      const associations =
+        await this.labelAssociationsRepo.getAssociationsByChatId(id);
+      allAssociations.push(...associations);
+    }
+
+    const ids = lodash.uniq(
+      allAssociations.map((association) => association.labelId),
+    );
     return await this.labelsRepo.getAllByIds(ids);
   }
 
