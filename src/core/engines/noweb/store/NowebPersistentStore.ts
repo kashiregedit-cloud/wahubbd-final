@@ -194,21 +194,25 @@ export class NowebPersistentStore implements INowebStore {
 
     // Contacts
     ev.on('contacts.upsert', (data) => {
-      this.withLock('contacts', () => this.onContactsUpsert(data));
-      this.withNoLock('lids', async () => {
-        const lids = await this.handleLidPNUpdates(data);
-        this.logger.debug(
-          `contacts.upsert - '${lids.length}' synced lid to pn mapping`,
-        );
+      this.withLock('contacts', async () => {
+        const upserts = await this.onContactsUpsert(data);
+        this.withNoLock('lids', async () => {
+          const lids = await this.handleLidPNUpdates(upserts);
+          this.logger.debug(
+            `contacts.upsert - '${lids.length}' synced lid to pn mapping`,
+          );
+        });
       });
     });
     ev.on('contacts.update', (data) => {
-      this.withLock('contacts', () => this.onContactUpdate(data));
-      this.withNoLock('lids', async () => {
-        const lids = await this.handleLidPNUpdates(data);
-        this.logger.debug(
-          `contacts.update - '${lids.length}' synced lid to pn mapping`,
-        );
+      this.withLock('contacts', async () => {
+        const upserts = await this.onContactUpdate(data);
+        this.withNoLock('lids', async () => {
+          const lids = await this.handleLidPNUpdates(upserts);
+          this.logger.debug(
+            `contacts.update - '${lids.length}' synced lid to pn mapping`,
+          );
+        });
       });
     });
     ev.on('labels.edit', (data) => this.onLabelsEdit(data));
@@ -229,6 +233,9 @@ export class NowebPersistentStore implements INowebStore {
 
   private async onMessagingHistorySet(history) {
     const { contacts, chats, messages } = history;
+    this.logger.debug(
+      `history sync keys: ${Object.keys(history).join(', ')}`,
+    );
 
     await Promise.all([
       this.withLock('contacts', async () => {
@@ -528,9 +535,11 @@ export class NowebPersistentStore implements INowebStore {
       upserts.push(result);
     }
     await this.contactRepo.upsertMany(upserts);
+    return upserts;
   }
 
   private async onContactUpdate(updates: Partial<Contact>[]) {
+    const upserts = [];
     for (const update of updates) {
       if (!this.jids.include(update.id)) {
         continue;
@@ -562,8 +571,10 @@ export class NowebPersistentStore implements INowebStore {
       } else if (update.imgUrl === 'removed') {
         delete contact.imgUrl;
       }
-      await this.onContactsUpsert([contact]);
+      upserts.push(contact);
     }
+    await this.onContactsUpsert(upserts);
+    return upserts;
   }
 
   private async onMessageReaction(reactions) {
@@ -605,6 +616,7 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   private async onLabelsEdit(label: Label) {
+    this.logger.info(`labels.edit - ${JSON.stringify(label)}`);
     if (label.deleted) {
       await this.labelsRepo.deleteById(label.id);
       await this.labelAssociationsRepo.deleteByLabelId(label.id);
@@ -617,6 +629,9 @@ export class NowebPersistentStore implements INowebStore {
     association: LabelAssociation,
     type: 'add' | 'remove',
   ) {
+    this.logger.info(
+      `labels.association - ${type} - ${JSON.stringify(association)}`,
+    );
     if (type === 'remove') {
       await this.labelAssociationsRepo.deleteOne(association);
     } else {
