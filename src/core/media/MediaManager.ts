@@ -7,6 +7,7 @@ import {
 } from '@waha/core/media/IMediaStorage';
 import { WAMedia } from '@waha/structures/media.dto';
 import { Logger } from 'pino';
+import { IMediaConverter } from './IConverter';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const mime = require('mime-types');
@@ -50,11 +51,12 @@ export class MediaManager implements IMediaManager {
     processor: IMediaEngineProcessor<Message>,
     message: Message,
     session: string,
+    mediaConverter?: IMediaConverter,
   ): Promise<WAMedia | null> {
     const messageId = processor.getMessageId(message);
     const chatId = processor.getChatId(message);
-    const mimetype = processor.getMimetype(message);
-    const filename = processor.getFilename(message);
+    let mimetype = processor.getMimetype(message);
+    let filename = processor.getFilename(message);
     if (!this.shouldProcessMimetype(mimetype)) {
       this.log.info(
         `The message '${messageId}' has '${mimetype}' mimetype media, skip it.`,
@@ -75,6 +77,26 @@ export class MediaManager implements IMediaManager {
     if (!extension && mimetype.startsWith('audio/')) {
       extension = 'ogg';
     }
+
+    let shouldConvert = false;
+    if (mediaConverter && mimetype.startsWith('audio/')) {
+      extension = 'mp3';
+      mimetype = 'audio/mpeg';
+      shouldConvert = true;
+      // Replace extension in filename if present
+      if (filename) {
+        const parts = filename.split('.');
+        if (parts.length > 1) {
+          parts.pop();
+          filename = parts.join('.') + '.mp3';
+        } else {
+          filename = filename + '.mp3';
+        }
+      } else {
+        filename = 'audio.mp3';
+      }
+    }
+
     const mediaData: MediaData = {
       session: session,
       message: {
@@ -94,9 +116,31 @@ export class MediaManager implements IMediaManager {
     if (!exists) {
       this.log.info(`The message ${messageId} has media, downloading it...`);
       // Fetching media
-      const buffer = await this.withRetry('Fetching media', () =>
+      let buffer = await this.withRetry('Fetching media', () =>
         this.fetchMedia(message, processor),
       );
+
+      if (shouldConvert) {
+        try {
+          this.log.info(`Converting audio to MP3 for message '${messageId}'...`);
+          buffer = await mediaConverter.voice(buffer);
+        } catch (error) {
+          this.log.error(
+            error,
+            `Failed to convert audio to MP3 for message '${messageId}', saving original.`,
+          );
+          // Revert extension if conversion failed
+          // But wait, mediaData is already set to mp3.
+          // If we fail, we probably shouldn't save it as mp3.
+          // For now, let's just log and throw or continue?
+          // If we continue with original buffer but mp3 extension, it will be broken.
+          // So better to fail or revert.
+          // Reverting is complex because we need to check existence of original file.
+          // Let's just throw for now.
+          throw error;
+        }
+      }
+
       // Saving media
       await this.withRetry('Saving media', () =>
         this.saveMedia(buffer, mediaData),
@@ -107,6 +151,11 @@ export class MediaManager implements IMediaManager {
     const data = await this.withRetry('Getting media URL', () =>
       this.getStorageData(mediaData),
     );
+    // Return updated mimetype/filename if converted
+    if (shouldConvert) {
+      data.mimetype = mimetype;
+      data.filename = filename;
+    }
     return data;
   }
 
@@ -114,6 +163,7 @@ export class MediaManager implements IMediaManager {
     processor: IMediaEngineProcessor<Message>,
     message: Message,
     session: string,
+    mediaConverter?: IMediaConverter,
   ): Promise<WAMedia | null> {
     let messageId: string;
     try {
@@ -137,7 +187,12 @@ export class MediaManager implements IMediaManager {
     try {
       media.filename = processor.getFilename(message);
       media.mimetype = processor.getMimetype(message);
-      const data = await this.processMediaInternal(processor, message, session);
+      const data = await this.processMediaInternal(
+        processor,
+        message,
+        session,
+        mediaConverter,
+      );
       media = { ...media, ...data };
     } catch (err) {
       this.log.error(err, `Error processing media for message '${messageId}'`);

@@ -2220,6 +2220,7 @@ export class WhatsappSessionWebJSCore extends WhatsappSession {
       processor,
       message,
       this.name,
+      this.mediaConverter,
     );
     return media;
   }

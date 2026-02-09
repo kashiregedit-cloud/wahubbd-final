@@ -2307,6 +2307,7 @@ export class WhatsappSessionGoWSCore extends WhatsappSession {
       processor,
       message,
       this.name,
+      this.mediaConverter,
     );
     return media;
   }

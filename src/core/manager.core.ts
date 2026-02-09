@@ -21,7 +21,7 @@ import { promiseTimeout, sleep } from '@waha/utils/promiseTimeout';
 import { complete } from '@waha/utils/reactive/complete';
 import { SwitchObservable } from '@waha/utils/reactive/SwitchObservable';
 import { PinoLogger } from 'nestjs-pino';
-import { Observable, retry, share } from 'rxjs';
+import { EMPTY, Observable, retry, share } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { WhatsappConfigService } from '../config.service';
@@ -153,7 +153,11 @@ export class SessionManagerCore extends SessionManager implements OnModuleInit {
 
   isRunning(name: string): boolean {
     const state = this.sessions.get(name);
-    return !!state && state !== DefaultSessionStatus.STOPPED && state !== DefaultSessionStatus.REMOVED;
+    if (!state) {
+      return false;
+    }
+    const session = state as WhatsappSession;
+    return session.status !== WAHASessionStatus.FAILED;
   }
 
   async upsert(name: string, config?: SessionConfig): Promise<void> {
@@ -235,25 +239,38 @@ export class SessionManagerCore extends SessionManager implements OnModuleInit {
 
   private updateSessionEvents(name: string) {
     const current = this.sessions.get(name);
-    if (!current || current === DefaultSessionStatus.STOPPED || current === DefaultSessionStatus.REMOVED) {
+    const events = this.eventsMap.get(name);
+    if (
+      !current ||
+      current === DefaultSessionStatus.STOPPED ||
+      current === DefaultSessionStatus.REMOVED
+    ) {
+      if (events) {
+        for (const obs of events.values()) {
+          obs.switch(EMPTY);
+        }
+      }
       return;
     }
     const session: WhatsappSession = current as WhatsappSession;
-    let events = this.eventsMap.get(name);
     if (!events) {
-      events = new DefaultMap<WAHAEvents, SwitchObservable<any>>((key) =>
+      // Logic below handles creation of events map if it doesn't exist
+    }
+    let sessionEvents = events;
+    if (!sessionEvents) {
+      sessionEvents = new DefaultMap<WAHAEvents, SwitchObservable<any>>((key) =>
         new SwitchObservable((obs$) => {
           return obs$.pipe(retry(), share());
         }),
       );
-      this.eventsMap.set(name, events);
+      this.eventsMap.set(name, sessionEvents);
     }
     for (const eventName in WAHAEvents) {
       const event = WAHAEvents[eventName];
       const stream$ = session
         .getEventObservable(event)
         .pipe(map(populateSessionInfo(event, session)));
-      events.get(event).switch(stream$);
+      sessionEvents.get(event).switch(stream$);
     }
   }
 
@@ -319,6 +336,7 @@ export class SessionManagerCore extends SessionManager implements OnModuleInit {
     this.sessionConfigs.delete(name);
     this.sessions.delete(name);
     this.updateSessionEvents(name);
+    this.eventsMap.delete(name);
   }
 
   /**
