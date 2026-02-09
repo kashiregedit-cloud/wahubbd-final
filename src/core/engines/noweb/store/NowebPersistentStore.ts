@@ -759,13 +759,50 @@ export class NowebPersistentStore implements INowebStore {
         LabelAssociationType.Chat,
       );
     const ids = associations.map((association) => association.chatId);
-    return await this.chatRepo.getAllByIds(ids);
+
+    const resolvedIds: string[] = [];
+    for (const id of ids) {
+      resolvedIds.push(id);
+      if (isLidUser(id)) {
+        let pn = await this.lidRepo.findPNByLid(id);
+        if (!pn) {
+          // Fallback: Try to find in contacts
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const repo = this.contactRepo as any;
+          if (typeof repo.findByLid === 'function') {
+            const contact = await repo.findByLid(id);
+            if (contact && isPnUser(contact.id)) {
+              pn = contact.id;
+              // Update mapping
+              await this.lidRepo.saveLids([{ id: id, pn: pn }]);
+            }
+          }
+        }
+        if (pn) {
+          resolvedIds.push(pn);
+        }
+      }
+    }
+    return await this.chatRepo.getAllByIds(lodash.uniq(resolvedIds));
   }
 
   async getChatLabels(chatId: string): Promise<Label[]> {
     const chatIds = [chatId];
     if (isLidUser(chatId)) {
-      const pn = await this.lidRepo.findPNByLid(chatId);
+      let pn = await this.lidRepo.findPNByLid(chatId);
+      if (!pn) {
+        // Fallback: Try to find in contacts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const repo = this.contactRepo as any;
+        if (typeof repo.findByLid === 'function') {
+          const contact = await repo.findByLid(chatId);
+          if (contact && isPnUser(contact.id)) {
+            pn = contact.id;
+            // Update mapping
+            await this.lidRepo.saveLids([{ id: chatId, pn: pn }]);
+          }
+        }
+      }
       if (pn) {
         chatIds.push(pn);
       }

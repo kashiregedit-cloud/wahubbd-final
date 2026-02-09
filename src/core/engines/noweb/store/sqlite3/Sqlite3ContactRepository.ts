@@ -18,4 +18,19 @@ export class Sqlite3ContactRepository
   get schema() {
     return NowebContactSchema;
   }
+
+  async findByLid(lid: string): Promise<Contact | null> {
+    const table = this.table;
+    // Fallback search for LID in data column
+    const pattern = `%"lid":"${lid}"%`;
+    const row = await this.knex(table).where('data', 'like', pattern).first();
+    if (!row) {
+      return null;
+    }
+    const contact = this.parse(row);
+    if (contact.lid !== lid) {
+      return null;
+    }
+    return contact;
+  }
 }
