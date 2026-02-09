@@ -98,7 +98,7 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   bind(ev: BaileysEventEmitter, socket: any) {
-    this.logger.warn('NowebPersistentStore: Binding events');
+    this.logger.warn('NowebPersistentStore: Binding events - V2 DEBUG MARKER');
     // All
     ev.on('messaging-history.set', (data) => this.onMessagingHistorySet(data));
     // Messages
