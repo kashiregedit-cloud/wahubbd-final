@@ -2437,6 +2437,20 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     //
     // Labels
     //
+    // Debug: log all events from sock.ev to see if there are new label/list events
+    const originalEmit = this.sock.ev.emit;
+    const self = this;
+    this.sock.ev.emit = function (event, ...args) {
+      if (
+        typeof event === 'string' &&
+        (event.toLowerCase().includes('label') ||
+          event.toLowerCase().includes('list'))
+      ) {
+        self.logger.info(`Engine event [${event}]: ${JSON.stringify(args)}`);
+      }
+      return originalEmit.apply(this, [event, ...args]);
+    };
+
     // @ts-ignore
     const labelsEdit$: Observable<NOWEBLabel> = fromEvent(
       this.sock.ev,
@@ -2462,6 +2476,13 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       labelsAssociation$.pipe(
         filter(({ type }: any) => type === 'add'),
         map((data) => data.association),
+        tap((association: any) => {
+          if (association.type !== LabelAssociationType.Chat) {
+            this.logger.info(
+              `Label association of type '${association.type}' received: ${JSON.stringify(association)}`,
+            );
+          }
+        }),
         filter(
           (association: any) => association.type === LabelAssociationType.Chat,
         ),
@@ -2471,6 +2492,13 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       labelsAssociation$.pipe(
         filter(({ type }: any) => type === 'remove'),
         map((data) => data.association),
+        tap((association: any) => {
+          if (association.type !== LabelAssociationType.Chat) {
+            this.logger.info(
+              `Label association removal of type '${association.type}' received: ${JSON.stringify(association)}`,
+            );
+          }
+        }),
         filter(
           (association: any) => association.type === LabelAssociationType.Chat,
         ),
