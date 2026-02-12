@@ -50,11 +50,8 @@ async function main() {
             });
             
             const targetLabel = labels.find(l => l.name === LABEL_NAME);
-            
             if (targetLabel) {
                 console.log(`\nSUCCESS: Found label '${LABEL_NAME}' with ID: ${targetLabel.id}`);
-                
-                // Check chats
                 console.log(`Checking chats for label '${LABEL_NAME}'...`);
                 const chats = await request(`/api/${SESSION}/labels/${targetLabel.id}/chats`);
                 console.log('Chats with this label:', JSON.stringify(chats, null, 2));

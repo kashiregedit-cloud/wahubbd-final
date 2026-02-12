@@ -22,10 +22,10 @@ async function main() {
     const session = sessions.find(s => s.name === SESSION);
     
     if (session) {
-        console.log('Session Status:', JSON.stringify(session, null, 2));
+      console.log('Session Status:', JSON.stringify(session, null, 2));
     } else {
-        console.error(`Session ${SESSION} not found!`);
-        console.log('Available sessions:', sessions.map(s => s.name));
+      console.error(`Session ${SESSION} not found!`);
+      console.log('Available sessions:', sessions.map(s => s.name));
     }
 
   } catch (error) {

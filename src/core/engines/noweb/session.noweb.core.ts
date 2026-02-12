@@ -2629,7 +2629,9 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
     const mediaContent = extractMediaContent(message.message);
     const source = this.getMessageSource(message.key.id);
     const waproto = message.message;
-    return {
+    const msgType = getContentType(waproto);
+
+    const result: any = {
       id: id,
       timestamp: ensureNumber(message.messageTimestamp),
       from: toCusFormat(fromToParticipant.from),
@@ -2651,6 +2653,33 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
       replyTo: replyTo,
       _data: message,
     };
+
+    if (msgType === 'interactiveResponseMessage') {
+      const response = waproto.interactiveResponseMessage;
+      const nativeFlowResponse = response.nativeFlowResponseMessage;
+      if (nativeFlowResponse) {
+        result.interactive = {
+          type: 'native_flow_response',
+          body: response.body?.text,
+          nativeFlowResponse: {
+            name: nativeFlowResponse.name,
+            params: JSON.parse(nativeFlowResponse.paramsJson || '{}'),
+          },
+        };
+      }
+    } else if (msgType === 'listResponseMessage') {
+      const response = waproto.listResponseMessage;
+      result.interactive = {
+        type: 'list_response',
+        listResponse: {
+          title: response.title,
+          description: response.description,
+          selectedRowId: response.singleSelectReply?.selectedRowId,
+        },
+      };
+    }
+
+    return result;
   }
 
   protected extractReplyTo(message): ReplyToMessage | null {
@@ -3117,8 +3146,29 @@ export function extractBody(message): string | null {
       body = parts.filter(Boolean).join('\n');
     } else if (type === 'listResponseMessage') {
       const response = content.listResponseMessage;
-      const parts = [response.title, response.description];
+      const parts = [
+        response.title,
+        response.description,
+        response.singleSelectReply?.selectedRowId,
+      ];
       body = parts.filter(Boolean).join('\n');
+    } else if (type === 'interactiveMessage') {
+      const interactive = content.interactiveMessage;
+      const parts = [
+        interactive.header?.title,
+        interactive.body?.text,
+        interactive.footer?.text,
+      ];
+      body = parts.filter(Boolean).join('\n');
+    } else if (type === 'interactiveResponseMessage') {
+      const response = content.interactiveResponseMessage;
+      const nativeFlowResponse = response.nativeFlowResponseMessage;
+      if (nativeFlowResponse) {
+        const params = JSON.parse(nativeFlowResponse.paramsJson || '{}');
+        body = params.id || params.selected_row_id || response.body?.text;
+      } else {
+        body = response.body?.text;
+      }
     }
   }
 

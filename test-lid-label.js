@@ -59,11 +59,11 @@ async function main() {
             console.log(`\nFound label '${LABEL_NAME}' with ID: ${targetLabel.id}`);
         }
 
-        console.log(`\nAssigning label to chat '${TARGET_CHAT_LID}'...`);
-        // API: PUT /api/{session}/labels/{labelId}/chats
-        // Body: { chatId: "..." }
-        await request(`/api/${SESSION}/labels/${targetLabel.id}/chats`, 'PUT', {
-            chatId: TARGET_CHAT_LID
+        console.log(`\n2. Assigning label to chat '${TARGET_CHAT_LID}'...`);
+        // API: PUT /api/{session}/labels/chats/{chatId}
+        // Body: { labels: [labelId] }
+        await request(`/api/${SESSION}/labels/chats/${TARGET_CHAT_LID}`, 'PUT', {
+            labels: [targetLabel.id]
         });
         console.log('Assignment request sent successfully.');
 
