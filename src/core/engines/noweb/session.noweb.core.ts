@@ -2923,7 +2923,12 @@ export class WhatsappSessionNoWebCore extends WhatsappSession {
 
   protected async downloadMedia(message): Promise<WAMedia | null> {
     const processor = new NOWEBEngineMediaProcessor(this, this.loggerBuilder);
-    return this.mediaManager.processMedia(processor, message, this.name);
+    return this.mediaManager.processMedia(
+      processor,
+      message,
+      this.name,
+      this.mediaConverter,
+    );
   }
 
   protected async getMessageOptions(request: {

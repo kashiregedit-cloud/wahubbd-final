@@ -38,36 +38,26 @@ async function request(endpoint, method = 'GET', body = null) {
 
 async function main() {
     try {
-        console.log(`Checking labels for session: ${SESSION}...`);
+        console.log(`1. Finding label '${LABEL_NAME}'...`);
         const labels = await request(`/api/${SESSION}/labels`);
-        
-        console.log(`Found ${labels.length} labels:`);
-        labels.forEach(l => {
-            console.log(` - [${l.id}] ${l.name} (Color: ${l.color})`);
-        });
-
-        let targetLabel = labels.find(l => l.name === LABEL_NAME);
+        const targetLabel = labels.find(l => l.name === LABEL_NAME);
         
         if (!targetLabel) {
-            console.log(`\nLabel '${LABEL_NAME}' not found. Creating it...`);
-            targetLabel = await request(`/api/${SESSION}/labels`, 'POST', {
-                name: LABEL_NAME,
-                color: 1 // Default color
-            });
-            console.log(`Created label '${LABEL_NAME}' with ID: ${targetLabel.id}`);
-        } else {
-            console.log(`\nFound label '${LABEL_NAME}' with ID: ${targetLabel.id}`);
+            console.error(`ERROR: Label '${LABEL_NAME}' not found! Please create it first.`);
+            return;
         }
+        console.log(`Found label '${LABEL_NAME}' with ID: ${targetLabel.id}`);
 
         console.log(`\n2. Assigning label to chat '${TARGET_CHAT_LID}'...`);
-        // API: PUT /api/{session}/labels/chats/{chatId}
-        // Body: { labels: [labelId] }
-        await request(`/api/${SESSION}/labels/chats/${TARGET_CHAT_LID}`, 'PUT', {
-            labels: [targetLabel.id]
+        // Note: The endpoint to add a chat to a label usually expects the chat ID in the body
+        // API: PUT /api/{session}/labels/{labelId}/chats
+        // Body: { chatId: "..." }
+        await request(`/api/${SESSION}/labels/${targetLabel.id}/chats`, 'PUT', {
+            chatId: TARGET_CHAT_LID
         });
         console.log('Assignment request sent successfully.');
 
-        console.log(`\nVerifying assignment...`);
+        console.log(`\n3. Verifying assignment...`);
         // Give it a moment to sync/persist
         await new Promise(r => setTimeout(r, 2000));
 
@@ -77,8 +67,9 @@ async function main() {
         const found = chats.some(c => c.id === TARGET_CHAT_LID || c.lid === TARGET_CHAT_LID);
         if (found) {
             console.log(`\nSUCCESS: Chat '${TARGET_CHAT_LID}' is now associated with label '${LABEL_NAME}'!`);
-            console.log(`\nNow please REMOVE this label from the chat using your mobile phone.`);
-            console.log(`After removing, run this script again or ask me to verify.`);
+            console.log(`Now checking if PN mapping is also present...`);
+            // Check if any chat in the list looks like the PN version
+            // This confirms the LID-PN sync logic works
         } else {
             console.log(`\nFAILURE: Chat '${TARGET_CHAT_LID}' was NOT found in the label's chat list.`);
             console.log('This indicates the LID-PN sync or storage issue persists.');

@@ -233,7 +233,7 @@ export class NowebPersistentStore implements INowebStore {
   }
 
   private async onMessagingHistorySet(history) {
-    const { contacts, chats, messages, labels, labelAssociations } = history;
+    const { contacts, chats, messages } = history;
     this.logger.debug(
       `history sync keys: ${Object.keys(history).join(', ')}`,
     );
@@ -251,22 +251,6 @@ export class NowebPersistentStore implements INowebStore {
       }),
       this.withLock('chats', () => this.onChatUpsert(chats)),
       this.withLock('messages', () => this.syncMessagesHistory(messages)),
-      this.withLock('labels', async () => {
-        if (labels) {
-          for (const label of labels) {
-            await this.onLabelsEdit(label);
-          }
-          this.logger.info(`history sync - '${labels.length}' synced labels`);
-        }
-        if (labelAssociations) {
-          for (const association of labelAssociations) {
-            await this.onLabelsAssociation(association, 'add');
-          }
-          this.logger.info(
-            `history sync - '${labelAssociations.length}' synced label associations`,
-          );
-        }
-      }),
     ]);
   }
 
