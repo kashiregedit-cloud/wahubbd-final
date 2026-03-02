@@ -24,6 +24,6 @@ export class MediaLocalStorageConfig {
   }
 
   get filesLifetime(): number {
-    return parseInt(this.config.get('WHATSAPP_FILES_LIFETIME', '180'));
+    return parseInt(this.config.get('WHATSAPP_FILES_LIFETIME', '86400'));
   }
 }
